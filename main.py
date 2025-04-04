@@ -1,10 +1,9 @@
-import os
 from openai import OpenAI
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 
@@ -21,15 +20,17 @@ def get_summary(ticker_1, stock_data_1, ticker_2, stock_data_2):
             """
     CONTENT_MSG = f"This is the {ticker_1} stock data : {stock_data_1}, this is {ticker_2} stock data: {stock_data_2}"
     
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": SYSTEM_MSG},
-            {"role": "user", "content": CONTENT_MSG}
-        ] 
-    )
-    
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_MSG},
+                {"role": "user", "content": CONTENT_MSG}
+            ] 
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error getting summary from OpenAI: {e}"
 
 st.title("Financial Market Analysis")
 
@@ -39,11 +40,9 @@ stock_ticker_2 = st.sidebar.text_input("Enter Stock Ticker", "GOOGL").upper()
 
 side_cols = st.sidebar.columns(2)
 with side_cols[0]:
-    side_cols[0].subheader("Start Date")
     start_date = side_cols[0].date_input("Start Date", value=pd.to_datetime('2024-01-01'))
     
 with side_cols[1]:
-    side_cols[1].subheader("End Date")
     end_date = side_cols[1].date_input("End Date", value=pd.to_datetime('2024-02-01'))
 
 cols = st.columns(2)
@@ -77,5 +76,6 @@ with cols[1]:
             st.write(st_data_2)
     
 if st.button("Comparative Performance") and stock_ticker_1 and stock_ticker_2:
-    summary = get_summary(stock_ticker_1, st_data_1, stock_ticker_2, st_data_2)
-    st.write(summary)
+    with st.spinner("Generating summary..."):
+        summary = get_summary(stock_ticker_1, st_data_1, stock_ticker_2, st_data_2)
+        st.markdown(summary)
